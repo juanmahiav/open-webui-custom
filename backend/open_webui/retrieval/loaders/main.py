@@ -266,7 +266,7 @@ class Loader:
             )
         elif self.engine == "tika" and self.kwargs.get("TIKA_SERVER_URL"):
             if self._is_text_file(file_ext, file_content_type):
-                loader = TextLoader(file_path, autodetect_encoding=True)
+                loader = TextLoader(file_path, encoding='utf-8')
             else:
                 loader = TikaLoader(
                     url=self.kwargs.get("TIKA_SERVER_URL"),
@@ -325,7 +325,7 @@ class Loader:
             )
         elif self.engine == "docling" and self.kwargs.get("DOCLING_SERVER_URL"):
             if self._is_text_file(file_ext, file_content_type):
-                loader = TextLoader(file_path, autodetect_encoding=True)
+                loader = TextLoader(file_path, encoding='utf-8')
             else:
                 # Build params for DoclingLoader
                 params = self.kwargs.get("DOCLING_PARAMS", {})
@@ -393,7 +393,7 @@ class Loader:
                     file_path, extract_images=self.kwargs.get("PDF_EXTRACT_IMAGES")
                 )
             elif file_ext == "csv":
-                loader = CSVLoader(file_path, autodetect_encoding=True)
+                loader = CSVLoader(file_path, encoding='utf-8')
             elif file_ext == "rst":
                 loader = UnstructuredRSTLoader(file_path, mode="elements")
             elif file_ext == "xml":
@@ -401,7 +401,7 @@ class Loader:
             elif file_ext in ["htm", "html"]:
                 loader = BSHTMLLoader(file_path, open_encoding="unicode_escape")
             elif file_ext == "md":
-                loader = TextLoader(file_path, autodetect_encoding=True)
+                loader = TextLoader(file_path, encoding='utf-8')
             elif file_content_type == "application/epub+zip":
                 loader = UnstructuredEPubLoader(file_path)
             elif (
@@ -425,8 +425,8 @@ class Loader:
             elif file_ext == "odt":
                 loader = UnstructuredODTLoader(file_path)
             elif self._is_text_file(file_ext, file_content_type):
-                loader = TextLoader(file_path, autodetect_encoding=True)
+                loader = TextLoader(file_path, encoding='utf-8')
             else:
-                loader = TextLoader(file_path, autodetect_encoding=True)
+                loader = TextLoader(file_path, encoding='utf-8')
 
         return loader

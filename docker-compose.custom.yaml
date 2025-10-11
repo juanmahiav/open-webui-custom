@@ -1,0 +1,26 @@
+services:
+  open-webui-custom:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open-webui-custom
+    container_name: open-webui-custom
+    volumes:
+      - open-webui-data:/app/backend/data
+    ports:
+      - "3000:8080"
+    environment:
+      - 'WEBUI_SECRET_KEY='
+      - 'OLLAMA_BASE_URL=http://host.docker.internal:11434'
+    networks:
+      - ai-net
+    restart: unless-stopped
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+networks:
+  ai-net:
+    external: true
+
+volumes:
+  open-webui-data: {}

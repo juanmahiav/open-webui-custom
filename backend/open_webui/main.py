@@ -93,6 +93,7 @@ from open_webui.routers import (
     users,
     utils,
     scim,
+    scheduled_actions,
 )
 
 from open_webui.routers.retrieval import (
@@ -602,7 +603,24 @@ async def lifespan(app: FastAPI):
             None,
         )
 
+    # Initialize the scheduler service for scheduled actions
+    try:
+        from open_webui.services.scheduler import get_scheduler_service
+        app.state.scheduler_service = await get_scheduler_service(app.state)
+        log.info("Scheduler service initialized successfully")
+    except Exception as e:
+        log.exception(f"Failed to initialize scheduler service: {e}")
+        app.state.scheduler_service = None
+
     yield
+
+    # Cleanup scheduler service on shutdown
+    if hasattr(app.state, "scheduler_service") and app.state.scheduler_service:
+        try:
+            await app.state.scheduler_service.stop()
+            log.info("Scheduler service stopped")
+        except Exception as e:
+            log.exception(f"Error stopping scheduler service: {e}")
 
     if hasattr(app.state, "redis_task_command_listener"):
         app.state.redis_task_command_listener.cancel()
@@ -1286,6 +1304,9 @@ app.include_router(openai.router, prefix="/openai", tags=["openai"])
 
 app.include_router(pipelines.router, prefix="/api/v1/pipelines", tags=["pipelines"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
+app.include_router(
+    scheduled_actions.router, prefix="/api/v1/scheduled-actions", tags=["scheduled_actions"]
+)
 app.include_router(images.router, prefix="/api/v1/images", tags=["images"])
 
 app.include_router(audio.router, prefix="/api/v1/audio", tags=["audio"])

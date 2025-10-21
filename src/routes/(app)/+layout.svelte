@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
-	import { onMount, tick, getContext } from 'svelte';
+	import { onMount, tick, getContext, onDestroy } from 'svelte';
 	import { openDB, deleteDB } from 'idb';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
@@ -8,6 +8,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { fade } from 'svelte/transition';
+	import type { i18n as i18nType } from 'i18next';
+	import type { Writable } from 'svelte/store';
 
 	import { getKnowledgeBases } from '$lib/apis/knowledge';
 	import { getFunctions } from '$lib/apis/functions';
@@ -42,19 +44,70 @@
 	} from '$lib/stores';
 
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
+	import ResizableSidebar from '$lib/components/layout/ResizableSidebar.svelte';
 	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
 	import ChangelogModal from '$lib/components/ChangelogModal.svelte';
 	import AccountPending from '$lib/components/layout/Overlay/AccountPending.svelte';
 	import UpdateInfoToast from '$lib/components/layout/UpdateInfoToast.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 
-	const i18n = getContext('i18n');
+	const i18n: Writable<i18nType> = getContext('i18n');
 
 	let loaded = false;
 	let DB = null;
 	let localDBChats = [];
 
 	let version;
+
+	// Resizable sidebar functionality
+	let sidebarWidth = parseInt(localStorage.getItem('sidebarWidth') || '260');
+	let isResizing = false;
+	let startX = 0;
+	let startWidth = 0;
+
+	const startResize = (e: MouseEvent) => {
+		if (window.innerWidth < 768) return; // Don't resize on mobile
+		isResizing = true;
+		startX = e.clientX;
+		startWidth = sidebarWidth;
+		document.body.style.cursor = 'col-resize';
+		document.body.style.userSelect = 'none';
+		e.preventDefault();
+	};
+
+	const handleResizeMove = (e: MouseEvent) => {
+		if (!isResizing) return;
+		const deltaX = e.clientX - startX;
+		const newWidth = Math.max(200, Math.min(400, startWidth + deltaX));
+		if (newWidth !== sidebarWidth) {
+			sidebarWidth = newWidth;
+			localStorage.setItem('sidebarWidth', sidebarWidth.toString());
+			document.documentElement.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
+		}
+	};
+
+	const handleResizeEnd = () => {
+		isResizing = false;
+		document.body.style.cursor = '';
+		document.body.style.userSelect = '';
+	};
+
+	onMount(() => {
+		// Set initial CSS variable
+		document.documentElement.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
+		
+		// Add global event listeners for resize
+		document.addEventListener('mousemove', handleResizeMove);
+		document.addEventListener('mouseup', handleResizeEnd);
+		
+		// ... existing onMount code ...
+	});
+
+	onDestroy(() => {
+		document.removeEventListener('mousemove', handleResizeMove);
+		document.removeEventListener('mouseup', handleResizeEnd);
+		// ... existing onDestroy code ...
+	});
 
 	const clearChatInputStorage = () => {
 		const chatInputKeys = Object.keys(localStorage).filter((key) => key.startsWith('chat-input'));
@@ -385,19 +438,24 @@
 					</div>
 				{/if}
 
-				<Sidebar />
-
-				{#if loaded}
-					<slot />
-				{:else}
-					<div
-						class="w-full flex-1 h-full flex items-center justify-center {$showSidebar
-							? '  md:max-w-[calc(100%-260px)]'
-							: ' '}"
-					>
-						<Spinner className="size-5" />
+				<div class="flex w-full h-full">
+					<div class="resizable-sidebar-container">
+						<Sidebar />
+						<div class="sidebar-resize-handle" on:mousedown={startResize}></div>
 					</div>
-				{/if}
+
+					<div class="flex-1 min-w-0">
+						{#if loaded}
+							<slot />
+						{:else}
+							<div
+								class="w-full flex-1 h-full flex items-center justify-center"
+							>
+								<Spinner className="size-5" />
+							</div>
+						{/if}
+					</div>
+				</div>
 			{/if}
 		</div>
 	</div>
@@ -444,5 +502,56 @@
 	pre[class*='language-'] button:hover {
 		cursor: pointer;
 		background-color: #bcbabb;
+	}
+
+	/* Dynamic sidebar width styles */
+	:root {
+		--sidebar-width: 260px;
+	}
+	
+	.resizable-sidebar-container {
+		position: relative;
+		height: 100vh;
+		width: var(--sidebar-width);
+		flex-shrink: 0;
+	}
+	
+	.sidebar-resize-handle {
+		position: absolute;
+		top: 0;
+		right: 0;
+		width: 4px;
+		height: 100%;
+		cursor: col-resize;
+		background: transparent;
+		z-index: 50;
+		transition: background-color 0.2s ease;
+	}
+	
+	.sidebar-resize-handle:hover {
+		background: rgba(59, 130, 246, 0.2);
+	}
+	
+	.sidebar-resize-handle::after {
+		content: '';
+		position: absolute;
+		top: 50%;
+		right: 0;
+		width: 2px;
+		height: 32px;
+		background: #cbd5e1;
+		transform: translateY(-50%);
+		opacity: 0;
+		transition: opacity 0.2s ease;
+	}
+	
+	.sidebar-resize-handle:hover::after {
+		opacity: 1;
+	}
+
+	/* Prevent text selection during resize */
+	:global(body.resizing) {
+		cursor: col-resize !important;
+		user-select: none !important;
 	}
 </style>
